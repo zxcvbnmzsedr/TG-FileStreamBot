@@ -4,12 +4,15 @@ import (
 	"EverythingSuckz/fsb/config"
 	"EverythingSuckz/fsb/internal/commands"
 	"context"
+	"github.com/celestix/gotgproto/sessionMaker"
+	"github.com/glebarez/sqlite"
+	"github.com/gotd/td/telegram/dcs"
+	"golang.org/x/net/proxy"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/celestix/gotgproto"
-	"github.com/celestix/gotgproto/sessionMaker"
 )
 
 var Bot *gotgproto.Client
@@ -21,15 +24,20 @@ func StartClient(log *zap.Logger) (*gotgproto.Client, error) {
 		client *gotgproto.Client
 		err    error
 	})
+
+	sock5, _ := proxy.SOCKS5("tcp", config.ValueOf.PROXY, &proxy.Auth{}, proxy.Direct)
+	dc := sock5.(proxy.ContextDialer)
+
 	go func(ctx context.Context) {
 		client, err := gotgproto.NewClient(
 			int(config.ValueOf.ApiID),
 			config.ValueOf.ApiHash,
-			gotgproto.ClientType{
-				BotToken: config.ValueOf.BotToken,
-			},
+			gotgproto.ClientTypeBot(config.ValueOf.BotToken),
 			&gotgproto.ClientOpts{
-				Session:          sessionMaker.SqliteSession("fsb"),
+				Session: sessionMaker.SqlSession(sqlite.Open("fsb")),
+				Resolver: dcs.Plain(dcs.PlainOptions{
+					Dial: dc.DialContext,
+				}),
 				DisableCopyright: true,
 			},
 		)

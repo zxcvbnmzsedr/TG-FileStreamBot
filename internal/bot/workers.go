@@ -4,6 +4,7 @@ import (
 	"EverythingSuckz/fsb/config"
 	"context"
 	"fmt"
+	"github.com/glebarez/sqlite"
 	"os"
 	"path/filepath"
 	"sync"
@@ -147,18 +148,16 @@ func StartWorkers(log *zap.Logger) (*BotWorkers, error) {
 func startWorker(l *zap.Logger, botToken string, index int) (*gotgproto.Client, error) {
 	log := l.Named("Worker").Sugar()
 	log.Infof("Starting worker with index - %d", index)
-	var sessionType *sessionMaker.SqliteSessionConstructor
+	var sessionType *sessionMaker.SqlSessionConstructor
 	if config.ValueOf.UseSessionFile {
-		sessionType = sessionMaker.SqliteSession(fmt.Sprintf("sessions/worker-%d", index))
+		sessionType = sessionMaker.SqlSession(sqlite.Open("fsb"))
 	} else {
-		sessionType = sessionMaker.SqliteSession(":memory:")
+		sessionType = sessionMaker.SqlSession(sqlite.Open("fsb"))
 	}
 	client, err := gotgproto.NewClient(
 		int(config.ValueOf.ApiID),
 		config.ValueOf.ApiHash,
-		gotgproto.ClientType{
-			BotToken: botToken,
-		},
+		gotgproto.ClientTypeBot(config.ValueOf.BotToken),
 		&gotgproto.ClientOpts{
 			Session:          sessionType,
 			DisableCopyright: true,
