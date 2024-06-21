@@ -94,6 +94,9 @@ func FileFromMedia(media tg.MessageMediaClass) (*types.File, error) {
 
 func FileFromMessage(ctx context.Context, client *gotgproto.Client, messageID int, url string) (*types.File, error) {
 	key := fmt.Sprintf("file:%d:%d", messageID, client.Self.ID)
+	if messageID == -1 {
+		key = fmt.Sprintf("file:%s:%d", url, client.Self.ID)
+	}
 	log := Logger.Named("GetMessageMedia")
 	var cachedMedia types.File
 	err := cache.GetCache().Get(key, &cachedMedia)

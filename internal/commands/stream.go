@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"github.com/gotd/td/telegram/peers"
 	"strings"
 
 	"EverythingSuckz/fsb/config"
@@ -54,15 +53,52 @@ func sendLink(ctx *ext.Context, u *ext.Update) error {
 		ctx.Reply(u, "You are not allowed to use this bot.", nil)
 		return dispatcher.EndGroups
 	}
+	if not := u.EffectiveMessage.Media == nil; not {
+		url := u.EffectiveMessage.Text
+		link := fmt.Sprintf("%s/stream/%d?url=%s", config.ValueOf.Host, -1, url)
+		text := []styling.StyledTextOption{styling.Code(link)}
+		row := tg.KeyboardButtonRow{
+			Buttons: []tg.KeyboardButtonClass{
+				&tg.KeyboardButtonURL{
+					Text: "Download",
+					URL:  link + "&d=true",
+				},
+			},
+		}
+		row.Buttons = append(row.Buttons, &tg.KeyboardButtonURL{
+			Text: "Stream",
+			URL:  link,
+		})
+		markup := &tg.ReplyInlineMarkup{
+			Rows: []tg.KeyboardButtonRow{row},
+		}
+		if strings.Contains(link, "http://localhost") {
+			_, err := ctx.Reply(u, text, &ext.ReplyOpts{
+				NoWebpage:        false,
+				ReplyToMessageId: u.EffectiveMessage.ID,
+			})
+			if err != nil {
+				utils.Logger.Sugar().Error(err)
+				ctx.Reply(u, fmt.Sprintf("Error - %s", err.Error()), nil)
+			}
+		} else {
+			_, err := ctx.Reply(u, text, &ext.ReplyOpts{
+				Markup:           markup,
+				NoWebpage:        false,
+				ReplyToMessageId: u.EffectiveMessage.ID,
+			})
+			if err != nil {
+				utils.Logger.Sugar().Error(err)
+				ctx.Reply(u, fmt.Sprintf("Error - %s", err.Error()), nil)
+			}
+		}
+
+		return dispatcher.EndGroups
+
+	}
 	supported, err := supportedMediaFilter(u.EffectiveMessage)
 	if err != nil {
-		manager := peers.Options{}.Build(ctx.Raw)
-		link, i, err := utils.ParseMessageLink(ctx, manager, u.EffectiveMessage.Text)
-		if err != nil {
-			return err
-		}
-		println(link, i)
-		supported = true
+		return err
 	}
 	if !supported {
 		ctx.Reply(u, "Sorry, this message type is unsupported.", nil)
