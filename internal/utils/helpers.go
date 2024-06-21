@@ -37,9 +37,14 @@ func GetTGMessage(ctx context.Context, client *gotgproto.Client, messageID int, 
 		if err != nil {
 			return nil, err
 		}
-		newChanel := &tg.InputChannel{ChannelID: ch.ID(), AccessHash: -8671750483116047525}
-		inputMessageID = tg.InputMessageClass(&tg.InputMessageID{ID: msgId})
-		messageRequest = tg.ChannelsGetMessagesRequest{Channel: newChanel, ID: []tg.InputMessageClass{inputMessageID}}
+		switch v := ch.InputPeer().(type) {
+		case *tg.InputPeerChannel:
+			newChanel := &tg.InputChannel{ChannelID: ch.ID(), AccessHash: v.AccessHash}
+			inputMessageID = tg.InputMessageClass(&tg.InputMessageID{ID: msgId})
+			messageRequest = tg.ChannelsGetMessagesRequest{Channel: newChanel, ID: []tg.InputMessageClass{inputMessageID}}
+		default:
+			return nil, err
+		}
 	} else {
 		channel, err := GetLogChannelPeer(ctx, client.API(), client.PeerStorage)
 		if err != nil {
