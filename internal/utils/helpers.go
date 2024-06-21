@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gotd/td/telegram/peers"
 	"math/rand"
 
 	"github.com/celestix/gotgproto"
@@ -26,13 +27,27 @@ func Contains[T comparable](s []T, e T) bool {
 	return false
 }
 
-func GetTGMessage(ctx context.Context, client *gotgproto.Client, messageID int) (*tg.Message, error) {
+func GetTGMessage(ctx context.Context, client *gotgproto.Client, messageID int, url string) (*tg.Message, error) {
 	inputMessageID := tg.InputMessageClass(&tg.InputMessageID{ID: messageID})
-	channel, err := GetLogChannelPeer(ctx, client.API(), client.PeerStorage)
-	if err != nil {
-		return nil, err
+	manager := peers.Options{}.Build(client.API())
+
+	messageRequest := tg.ChannelsGetMessagesRequest{}
+	if messageID == -1 {
+		ch, msgId, err := ParseMessageLink(ctx, manager, url)
+		if err != nil {
+			return nil, err
+		}
+		newChanel := &tg.InputChannel{ChannelID: ch.ID(), AccessHash: -8671750483116047525}
+		inputMessageID = tg.InputMessageClass(&tg.InputMessageID{ID: msgId})
+		messageRequest = tg.ChannelsGetMessagesRequest{Channel: newChanel, ID: []tg.InputMessageClass{inputMessageID}}
+	} else {
+		channel, err := GetLogChannelPeer(ctx, client.API(), client.PeerStorage)
+		if err != nil {
+			return nil, err
+		}
+		messageRequest = tg.ChannelsGetMessagesRequest{Channel: channel, ID: []tg.InputMessageClass{inputMessageID}}
 	}
-	messageRequest := tg.ChannelsGetMessagesRequest{Channel: channel, ID: []tg.InputMessageClass{inputMessageID}}
+
 	res, err := client.API().ChannelsGetMessages(ctx, &messageRequest)
 	if err != nil {
 		return nil, err
@@ -72,7 +87,7 @@ func FileFromMedia(media tg.MessageMediaClass) (*types.File, error) {
 	return nil, fmt.Errorf("unexpected type %T", media)
 }
 
-func FileFromMessage(ctx context.Context, client *gotgproto.Client, messageID int) (*types.File, error) {
+func FileFromMessage(ctx context.Context, client *gotgproto.Client, messageID int, url string) (*types.File, error) {
 	key := fmt.Sprintf("file:%d:%d", messageID, client.Self.ID)
 	log := Logger.Named("GetMessageMedia")
 	var cachedMedia types.File
@@ -82,7 +97,7 @@ func FileFromMessage(ctx context.Context, client *gotgproto.Client, messageID in
 		return &cachedMedia, nil
 	}
 	log.Debug("Fetching file properties from message ID", zap.Int("messageID", messageID), zap.Int64("clientID", client.Self.ID))
-	message, err := GetTGMessage(ctx, client, messageID)
+	message, err := GetTGMessage(ctx, client, messageID, url)
 	if err != nil {
 		return nil, err
 	}

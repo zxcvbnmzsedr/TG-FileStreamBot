@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/gotd/td/telegram/peers"
 	"strings"
 
 	"EverythingSuckz/fsb/config"
@@ -39,6 +40,9 @@ func supportedMediaFilter(m *types.Message) (bool, error) {
 		return false, nil
 	}
 }
+func parseLink(ctx *ext.Context, u *ext.Update) {
+
+}
 
 func sendLink(ctx *ext.Context, u *ext.Update) error {
 	chatId := u.EffectiveChat().GetID()
@@ -52,7 +56,13 @@ func sendLink(ctx *ext.Context, u *ext.Update) error {
 	}
 	supported, err := supportedMediaFilter(u.EffectiveMessage)
 	if err != nil {
-		return err
+		manager := peers.Options{}.Build(ctx.Raw)
+		link, i, err := utils.ParseMessageLink(ctx, manager, u.EffectiveMessage.Text)
+		if err != nil {
+			return err
+		}
+		println(link, i)
+		supported = true
 	}
 	if !supported {
 		ctx.Reply(u, "Sorry, this message type is unsupported.", nil)

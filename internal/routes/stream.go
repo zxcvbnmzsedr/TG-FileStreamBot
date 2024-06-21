@@ -33,33 +33,36 @@ func getStreamRoute(ctx *gin.Context) {
 		return
 	}
 
-	authHash := ctx.Query("hash")
-	if authHash == "" {
-		http.Error(w, "missing hash param", http.StatusBadRequest)
-		return
-	}
-
 	ctx.Header("Accept-Ranges", "bytes")
 	var start, end int64
 	rangeHeader := r.Header.Get("Range")
 
 	worker := bot.GetNextWorker()
+	url := ctx.Query("url")
 
-	file, err := utils.FileFromMessage(ctx, worker.Client, messageID)
+	file, err := utils.FileFromMessage(ctx, worker.Client, messageID, url)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if messageID == -1 {
 
-	expectedHash := utils.PackFile(
-		file.FileName,
-		file.FileSize,
-		file.MimeType,
-		file.ID,
-	)
-	if !utils.CheckHash(authHash, expectedHash) {
-		http.Error(w, "invalid hash", http.StatusBadRequest)
-		return
+	} else {
+		authHash := ctx.Query("hash")
+		if authHash == "" {
+			http.Error(w, "missing hash param", http.StatusBadRequest)
+			return
+		}
+		expectedHash := utils.PackFile(
+			file.FileName,
+			file.FileSize,
+			file.MimeType,
+			file.ID,
+		)
+		if !utils.CheckHash(authHash, expectedHash) {
+			http.Error(w, "invalid hash", http.StatusBadRequest)
+			return
+		}
 	}
 
 	if rangeHeader == "" {
