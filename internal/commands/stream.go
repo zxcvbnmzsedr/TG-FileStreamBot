@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/gotd/td/telegram/peers"
 	"strings"
 
 	"EverythingSuckz/fsb/config"
@@ -54,8 +55,10 @@ func sendLink(ctx *ext.Context, u *ext.Update) error {
 		return dispatcher.EndGroups
 	}
 	if not := u.EffectiveMessage.Media == nil; not {
+		manager := peers.Options{}.Build(ctx.Raw)
 		url := u.EffectiveMessage.Text
-		link := fmt.Sprintf("%s/stream/%d?url=%s", config.ValueOf.Host, -1, url)
+		ch, msgId, _ := utils.ParseMessageLink(ctx, manager, url)
+		link := fmt.Sprintf("%s/%d/%d", config.ValueOf.TDL, ch.ID(), msgId)
 		text := []styling.StyledTextOption{styling.Code(link)}
 		row := tg.KeyboardButtonRow{
 			Buttons: []tg.KeyboardButtonClass{
@@ -122,14 +125,18 @@ func sendLink(ctx *ext.Context, u *ext.Update) error {
 		ctx.Reply(u, fmt.Sprintf("Error - %s", err.Error()), nil)
 		return dispatcher.EndGroups
 	}
-	fullHash := utils.PackFile(
-		file.FileName,
-		file.FileSize,
-		file.MimeType,
-		file.ID,
-	)
-	hash := utils.GetShortHash(fullHash)
-	link := fmt.Sprintf("%s/stream/%d?hash=%s", config.ValueOf.Host, messageID, hash)
+	//fullHash := utils.PackFile(
+	//	file.FileName,
+	//	file.FileSize,
+	//	file.MimeType,
+	//	file.ID,
+	//)
+	//hash := utils.GetShortHash(fullHash)
+	//link := fmt.Sprintf("%s/stream/%d?hash=%s", config.ValueOf.Host, messageID, hash)
+	channel, err := utils.GetLogChannelPeer(ctx, ctx.Raw, ctx.PeerStorage)
+
+	link := fmt.Sprintf("%s/%d/%d", config.ValueOf.TDL, channel.ChannelID, messageID)
+
 	text := []styling.StyledTextOption{styling.Code(link)}
 	row := tg.KeyboardButtonRow{
 		Buttons: []tg.KeyboardButtonClass{
