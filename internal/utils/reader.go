@@ -85,9 +85,11 @@ func (r *telegramReader) Read(p []byte) (n int, err error) {
 func (r *telegramReader) chunk(offset int64, limit int64) ([]byte, error) {
 
 	req := &tg.UploadGetFileRequest{
-		Offset:   offset,
-		Limit:    int(limit),
-		Location: r.location,
+		Offset:       offset,
+		Limit:        int(limit),
+		Location:     r.location,
+		CDNSupported: true,
+		Precise:      false,
 	}
 
 	res, err := r.client.API().UploadGetFile(r.ctx, req)
